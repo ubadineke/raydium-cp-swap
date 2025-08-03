@@ -193,8 +193,72 @@ describe("swap test", () => {
       BigInt(amount_out.toString())
     );
   });
+
+  it("swap base output with transfer hook", async () => {
+    const transferFeeConfig = { transferFeeBasisPoints: 5, MaxFee: 5000 }; // %5
+    const { configAddress, poolAddress, poolState } = await setupSwapTest(
+      program,
+      anchor.getProvider().connection,
+      owner,
+      {
+        config_index: 0,
+        tradeFeeRate: new BN(10),
+        protocolFeeRate: new BN(1000),
+        fundFeeRate: new BN(25000),
+        create_fee: new BN(0),
+      },
+      transferFeeConfig
+    );
+
+    const inputToken = poolState.token0Mint;
+    const inputTokenProgram = poolState.token0Program;
+    const inputTokenAccountAddr = getAssociatedTokenAddressSync(
+      inputToken,
+      owner.publicKey,
+      false,
+      inputTokenProgram
+    );
+    const outputToken = poolState.token1Mint;
+    const outputTokenProgram = poolState.token1Program;
+    const outputTokenAccountAddr = getAssociatedTokenAddressSync(
+      outputToken,
+      owner.publicKey,
+      false,
+      outputTokenProgram
+    );
+    const outputTokenAccountBefore = await getAccount(
+      anchor.getProvider().connection,
+      outputTokenAccountAddr,
+      "processed",
+      outputTokenProgram
+    );
+    await sleep(1000);
+    let amount_out = new BN(100000000);
+    await swap_base_output(
+      program,
+      owner,
+      configAddress,
+      inputToken,
+      inputTokenProgram,
+      poolState.token1Mint,
+      poolState.token1Program,
+      amount_out,
+      new BN(10000000000000),
+      confirmOptions
+    );
+    const outputTokenAccountAfter = await getAccount(
+      anchor.getProvider().connection,
+      outputTokenAccountAddr,
+      "processed",
+      outputTokenProgram
+    );
+    assert.equal(
+      outputTokenAccountAfter.amount - outputTokenAccountBefore.amount,
+      BigInt(amount_out.toString())
+    );
+  });
 });
 
-function sleep(ms: number): Promise<void> {
+export function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }

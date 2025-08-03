@@ -23,6 +23,7 @@ describe("deposit test", () => {
 
   it("deposit test, add the same liquidity and check the correctness of the values with and without transfer fees", async () => {
     /// deposit without fee
+    console.log("play");
     const { poolAddress, poolState } = await setupDepositTest(
       program,
       anchor.getProvider().connection,
@@ -36,6 +37,7 @@ describe("deposit test", () => {
       },
       { transferFeeBasisPoints: 0, MaxFee: 0 }
     );
+    console.log("Dont play");
 
     const {
       onwerToken0Account: ownerToken0AccountBefore,
@@ -103,41 +105,40 @@ describe("deposit test", () => {
     }; // %10
 
     // Ensure that the initialization state is the same with depsoit without fee
-    const { poolAddress: poolAddress2, poolState: poolState2 } =
-      await setupDepositTest(
-        program,
-        anchor.getProvider().connection,
-        owner,
-        {
-          config_index: 0,
-          tradeFeeRate: new BN(10),
-          protocolFeeRate: new BN(1000),
-          fundFeeRate: new BN(25000),
-          create_fee: new BN(0),
-        },
-        transferFeeConfig,
-        confirmOptions,
-        {
-          initAmount0: new BN(
-            calculatePreFeeAmount(
-              transferFeeConfig,
-              poolVault0TokenAccountBefore.amount,
-              poolState.token0Program
-            ).toString()
-          ),
-          initAmount1: new BN(
-            calculatePreFeeAmount(
-              transferFeeConfig,
-              poolVault1TokenAccountBefore.amount,
-              poolState.token1Program
-            ).toString()
-          ),
-        },
-        {
-          token0Program: poolState.token0Program,
-          token1Program: poolState.token1Program,
-        }
-      );
+    const { poolAddress: poolAddress2, poolState: poolState2 } = await setupDepositTest(
+      program,
+      anchor.getProvider().connection,
+      owner,
+      {
+        config_index: 0,
+        tradeFeeRate: new BN(10),
+        protocolFeeRate: new BN(1000),
+        fundFeeRate: new BN(25000),
+        create_fee: new BN(0),
+      },
+      transferFeeConfig,
+      confirmOptions,
+      {
+        initAmount0: new BN(
+          calculatePreFeeAmount(
+            transferFeeConfig,
+            poolVault0TokenAccountBefore.amount,
+            poolState.token0Program
+          ).toString()
+        ),
+        initAmount1: new BN(
+          calculatePreFeeAmount(
+            transferFeeConfig,
+            poolVault1TokenAccountBefore.amount,
+            poolState.token1Program
+          ).toString()
+        ),
+      },
+      {
+        token0Program: poolState.token0Program,
+        token1Program: poolState.token1Program,
+      }
+    );
     const {
       onwerToken0Account: onwerToken0AccountBefore2,
       onwerToken1Account: onwerToken1AccountBefore2,
@@ -219,24 +220,16 @@ describe("deposit test", () => {
 
     // Add the same liquidity, the amount increment of the pool vault will be the same as without fees.
     assert.equal(
-      poolVault0TokenAccountAfter2.amount -
-        poolVault0TokenAccountBefore2.amount,
+      poolVault0TokenAccountAfter2.amount - poolVault0TokenAccountBefore2.amount,
       input_token0_amount
     );
     assert.equal(
-      poolVault1TokenAccountAfter2.amount -
-        poolVault1TokenAccountBefore2.amount,
+      poolVault1TokenAccountAfter2.amount - poolVault1TokenAccountBefore2.amount,
       input_token1_amount
     );
 
-    assert.equal(
-      poolVault0TokenAccountAfter.amount,
-      poolVault0TokenAccountAfter2.amount
-    );
-    assert.equal(
-      poolVault1TokenAccountAfter.amount,
-      poolVault1TokenAccountAfter2.amount
-    );
+    assert.equal(poolVault0TokenAccountAfter.amount, poolVault0TokenAccountAfter2.amount);
+    assert.equal(poolVault1TokenAccountAfter.amount, poolVault1TokenAccountAfter2.amount);
   });
 
   it("deposit test with 100% transferFeeConfig, reache maximum fee limit", async () => {
@@ -312,24 +305,20 @@ describe("deposit test", () => {
 
     if (poolState.token0Program.equals(TOKEN_PROGRAM_ID)) {
       assert.equal(
-        poolVault0TokenAccountAfter.amount -
-          poolVault0TokenAccountBefore.amount,
+        poolVault0TokenAccountAfter.amount - poolVault0TokenAccountBefore.amount,
         input_token0_amount
       );
       assert.equal(
-        poolVault1TokenAccountAfter.amount -
-          poolVault1TokenAccountBefore.amount,
+        poolVault1TokenAccountAfter.amount - poolVault1TokenAccountBefore.amount,
         input_token1_amount - BigInt(transferFeeConfig.MaxFee)
       );
     } else {
       assert.equal(
-        poolVault0TokenAccountAfter.amount -
-          poolVault0TokenAccountBefore.amount,
+        poolVault0TokenAccountAfter.amount - poolVault0TokenAccountBefore.amount,
         input_token0_amount - BigInt(transferFeeConfig.MaxFee)
       );
       assert.equal(
-        poolVault1TokenAccountAfter.amount -
-          poolVault1TokenAccountBefore.amount,
+        poolVault1TokenAccountAfter.amount - poolVault1TokenAccountBefore.amount,
         input_token1_amount
       );
     }

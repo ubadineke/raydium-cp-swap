@@ -193,6 +193,7 @@ pub fn is_supported_mint(mint_account: &InterfaceAccount<Mint>) -> Result<bool> 
             && e != ExtensionType::TokenMetadata
             && e != ExtensionType::InterestBearingConfig
             && e != ExtensionType::ScaledUiAmount
+            && e != ExtensionType::TransferHook
         {
             return Ok(false);
         }

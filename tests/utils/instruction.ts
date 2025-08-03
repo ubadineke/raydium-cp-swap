@@ -13,6 +13,7 @@ import {
   TOKEN_PROGRAM_ID,
   TOKEN_2022_PROGRAM_ID,
   getAssociatedTokenAddressSync,
+  getOrCreateAssociatedTokenAccount,
 } from "@solana/spl-token";
 import {
   accountExist,
@@ -136,7 +137,21 @@ export async function setupDepositTest(
         );
       }
     } else {
-      return await initialize(
+      console.log("gotten here");
+      /// Custom Create Fee pooL
+      //Create token account with WSOL mint and public key
+      const wSOLMint = new PublicKey("So11111111111111111111111111111111111111112");
+
+      const pool_ata = await getOrCreateAssociatedTokenAccount(
+        connection,
+        owner,
+        wSOLMint,
+        owner.publicKey,
+        false,
+        "processed",
+        { skipPreflight: true }
+      );
+      return await initialize2(
         program,
         owner,
         configAddress,
@@ -144,9 +159,12 @@ export async function setupDepositTest(
         token0Program,
         token1,
         token1Program,
+        pool_ata.address,
         confirmOptions,
         initAmount
-      );
+      ).catch((error) => {
+        console.log(error);
+      });
     }
   }
 }
@@ -226,22 +244,13 @@ export async function createAmmConfig(
   create_fee: BN,
   confirmOptions?: ConfirmOptions
 ): Promise<PublicKey> {
-  const [address, _] = await getAmmConfigAddress(
-    config_index,
-    program.programId
-  );
+  const [address, _] = await getAmmConfigAddress(config_index, program.programId);
   if (await accountExist(connection, address)) {
     return address;
   }
 
   const ix = await program.methods
-    .createAmmConfig(
-      config_index,
-      tradeFeeRate,
-      protocolFeeRate,
-      fundFeeRate,
-      create_fee
-    )
+    .createAmmConfig(config_index, tradeFeeRate, protocolFeeRate, fundFeeRate, create_fee)
     .accounts({
       owner: owner.publicKey,
       ammConfig: address,
@@ -267,7 +276,8 @@ export async function initialize(
     initAmount0: new BN(10000000000),
     initAmount1: new BN(20000000000),
   },
-  createPoolFee = new PublicKey("DNXgeM9EiiaAbaWvwjHj9fQQLAX5ZsfHyvmYUNRAdNC8")
+  createPoolFee: PublicKey
+  // createPoolFee = new PublicKey("DNXgeM9EiiaAbaWvwjHj9fQQLAX5ZsfHyvmYUNRAdNC8")
 ) {
   const [auth] = await getAuthAddress(program.programId);
   const [poolAddress] = await getPoolAddress(
@@ -276,26 +286,11 @@ export async function initialize(
     token1,
     program.programId
   );
-  const [lpMintAddress] = await getPoolLpMintAddress(
-    poolAddress,
-    program.programId
-  );
-  const [vault0] = await getPoolVaultAddress(
-    poolAddress,
-    token0,
-    program.programId
-  );
-  const [vault1] = await getPoolVaultAddress(
-    poolAddress,
-    token1,
-    program.programId
-  );
+  const [lpMintAddress] = await getPoolLpMintAddress(poolAddress, program.programId);
+  const [vault0] = await getPoolVaultAddress(poolAddress, token0, program.programId);
+  const [vault1] = await getPoolVaultAddress(poolAddress, token1, program.programId);
   const [creatorLpTokenAddress] = await PublicKey.findProgramAddress(
-    [
-      creator.publicKey.toBuffer(),
-      TOKEN_PROGRAM_ID.toBuffer(),
-      lpMintAddress.toBuffer(),
-    ],
+    [creator.publicKey.toBuffer(), TOKEN_PROGRAM_ID.toBuffer(), lpMintAddress.toBuffer()],
     ASSOCIATED_PROGRAM_ID
   );
 
@@ -365,26 +360,11 @@ export async function deposit(
     program.programId
   );
 
-  const [lpMintAddress] = await getPoolLpMintAddress(
-    poolAddress,
-    program.programId
-  );
-  const [vault0] = await getPoolVaultAddress(
-    poolAddress,
-    token0,
-    program.programId
-  );
-  const [vault1] = await getPoolVaultAddress(
-    poolAddress,
-    token1,
-    program.programId
-  );
+  const [lpMintAddress] = await getPoolLpMintAddress(poolAddress, program.programId);
+  const [vault0] = await getPoolVaultAddress(poolAddress, token0, program.programId);
+  const [vault1] = await getPoolVaultAddress(poolAddress, token1, program.programId);
   const [ownerLpToken] = await PublicKey.findProgramAddress(
-    [
-      owner.publicKey.toBuffer(),
-      TOKEN_PROGRAM_ID.toBuffer(),
-      lpMintAddress.toBuffer(),
-    ],
+    [owner.publicKey.toBuffer(), TOKEN_PROGRAM_ID.toBuffer(), lpMintAddress.toBuffer()],
     ASSOCIATED_PROGRAM_ID
   );
 
@@ -443,26 +423,11 @@ export async function withdraw(
     program.programId
   );
 
-  const [lpMintAddress] = await getPoolLpMintAddress(
-    poolAddress,
-    program.programId
-  );
-  const [vault0] = await getPoolVaultAddress(
-    poolAddress,
-    token0,
-    program.programId
-  );
-  const [vault1] = await getPoolVaultAddress(
-    poolAddress,
-    token1,
-    program.programId
-  );
+  const [lpMintAddress] = await getPoolLpMintAddress(poolAddress, program.programId);
+  const [vault0] = await getPoolVaultAddress(poolAddress, token0, program.programId);
+  const [vault1] = await getPoolVaultAddress(poolAddress, token1, program.programId);
   const [ownerLpToken] = await PublicKey.findProgramAddress(
-    [
-      owner.publicKey.toBuffer(),
-      TOKEN_PROGRAM_ID.toBuffer(),
-      lpMintAddress.toBuffer(),
-    ],
+    [owner.publicKey.toBuffer(), TOKEN_PROGRAM_ID.toBuffer(), lpMintAddress.toBuffer()],
     ASSOCIATED_PROGRAM_ID
   );
 
@@ -641,4 +606,80 @@ export async function swap_base_output(
     .rpc(confirmOptions);
 
   return tx;
+}
+
+export async function initialize2(
+  program: Program<RaydiumCpSwap>,
+  creator: Signer,
+  configAddress: PublicKey,
+  token0: PublicKey,
+  token0Program: PublicKey,
+  token1: PublicKey,
+  token1Program: PublicKey,
+  createPoolFee: PublicKey,
+  confirmOptions?: ConfirmOptions,
+  initAmount: { initAmount0: BN; initAmount1: BN } = {
+    initAmount0: new BN(10000000000),
+    initAmount1: new BN(20000000000),
+  }
+  // createPoolFee = new PublicKey("DNXgeM9EiiaAbaWvwjHj9fQQLAX5ZsfHyvmYUNRAdNC8")
+) {
+  const [auth] = await getAuthAddress(program.programId);
+  const [poolAddress] = await getPoolAddress(
+    configAddress,
+    token0,
+    token1,
+    program.programId
+  );
+  const [lpMintAddress] = await getPoolLpMintAddress(poolAddress, program.programId);
+  const [vault0] = await getPoolVaultAddress(poolAddress, token0, program.programId);
+  const [vault1] = await getPoolVaultAddress(poolAddress, token1, program.programId);
+  const [creatorLpTokenAddress] = await PublicKey.findProgramAddress(
+    [creator.publicKey.toBuffer(), TOKEN_PROGRAM_ID.toBuffer(), lpMintAddress.toBuffer()],
+    ASSOCIATED_PROGRAM_ID
+  );
+
+  const [observationAddress] = await getOrcleAccountAddress(
+    poolAddress,
+    program.programId
+  );
+
+  const creatorToken0 = getAssociatedTokenAddressSync(
+    token0,
+    creator.publicKey,
+    false,
+    token0Program
+  );
+  const creatorToken1 = getAssociatedTokenAddressSync(
+    token1,
+    creator.publicKey,
+    false,
+    token1Program
+  );
+  await program.methods
+    .initialize(initAmount.initAmount0, initAmount.initAmount1, new BN(0))
+    .accountsPartial({
+      creator: creator.publicKey,
+      ammConfig: configAddress,
+      authority: auth,
+      poolState: poolAddress,
+      token0Mint: token0,
+      token1Mint: token1,
+      lpMint: lpMintAddress,
+      creatorToken0,
+      creatorToken1,
+      creatorLpToken: creatorLpTokenAddress,
+      token0Vault: vault0,
+      token1Vault: vault1,
+      createPoolFee,
+      observationState: observationAddress,
+      tokenProgram: TOKEN_PROGRAM_ID,
+      token0Program: token0Program,
+      token1Program: token1Program,
+      systemProgram: SystemProgram.programId,
+      rent: SYSVAR_RENT_PUBKEY,
+    })
+    .rpc(confirmOptions);
+  const poolState = await program.account.poolState.fetch(poolAddress);
+  return { poolAddress, poolState };
 }

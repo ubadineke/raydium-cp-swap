@@ -14,7 +14,7 @@ use anchor_spl::{
     token::Token,
     token_interface::{Mint, TokenAccount, TokenInterface},
 };
-use spl_token_2022;
+// use spl_token_2022;
 use std::ops::Deref;
 
 #[derive(Accounts)]
@@ -167,11 +167,13 @@ pub fn initialize(
     init_amount_1: u64,
     mut open_time: u64,
 ) -> Result<()> {
+    msg!("Program Nil Check");
     if !(is_supported_mint(&ctx.accounts.token_0_mint).unwrap()
         && is_supported_mint(&ctx.accounts.token_1_mint).unwrap())
     {
         return err!(ErrorCode::NotSupportMint);
     }
+    msg!("Program 0 Check");
 
     if ctx.accounts.amm_config.disable_create_pool {
         return err!(ErrorCode::NotApproved);

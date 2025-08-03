@@ -172,9 +172,7 @@ async function createMintWithTransferFee(
   const mintLen = getMintLen(extensions);
   const decimals = 9;
 
-  const mintLamports = await connection.getMinimumBalanceForRentExemption(
-    mintLen
-  );
+  const mintLamports = await connection.getMinimumBalanceForRentExemption(mintLen);
   const mintTransaction = new Transaction().add(
     SystemProgram.createAccount({
       fromPubkey: payer.publicKey,
