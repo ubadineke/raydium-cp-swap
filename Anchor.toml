@@ -7,7 +7,7 @@ seeds = false
 skip-lint = false
 
 [programs.Localnet]
-raydium_cp_swap = "CPMMoo8L3F4NbTegBCKVNunggL7H1ZpdTHKxQB5qKP1C"
+raydium_cp_swap = "ELBwrSNJVduooUqM4Lc6gfumSHrpu6NSZqUhrLz1BnKP"
 
 [programs.devnet]
 your_program_name = "ELBwrSNJVduooUqM4Lc6gfumSHrpu6NSZqUhrLz1BnKP"
@@ -24,8 +24,3 @@ test = "yarn run ts-mocha -p ./tsconfig.json -t 1000000 tests/**/*.test.ts"
 
 [test]
 startup_wait = 10000
-
-[test.validator]
-url = "mainnet-beta"
-skip_deploy = "true"
-ansad = "false"

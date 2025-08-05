@@ -25,6 +25,7 @@ import {
   getPoolVaultAddress,
   createTokenMintAndAssociatedTokenAccount,
   getOrcleAccountAddress,
+  createTokenMintAndAssociatedTokenAccount2,
 } from "./index";
 
 import { ASSOCIATED_PROGRAM_ID } from "@coral-xyz/anchor/dist/cjs/utils/token";
@@ -276,9 +277,12 @@ export async function initialize(
     initAmount0: new BN(10000000000),
     initAmount1: new BN(20000000000),
   },
-  createPoolFee: PublicKey
-  // createPoolFee = new PublicKey("DNXgeM9EiiaAbaWvwjHj9fQQLAX5ZsfHyvmYUNRAdNC8")
+  // createPoolFee: PublicKey
+  createPoolFee = new PublicKey("EbgGM7FcLWekZa6D7N4Z17cf6Ju9M6RdipjxxxUNLmpR")
 ) {
+  if (!createPoolFee) {
+    console.log("No Value for Create Pool Argument ");
+  }
   const [auth] = await getAuthAddress(program.programId);
   const [poolAddress] = await getPoolAddress(
     configAddress,
@@ -682,4 +686,70 @@ export async function initialize2(
     .rpc(confirmOptions);
   const poolState = await program.account.poolState.fetch(poolAddress);
   return { poolAddress, poolState };
+}
+
+export async function setupSwapTest2(
+  program: Program<RaydiumCpSwap>,
+  connection: Connection,
+  owner: Signer,
+  config: {
+    config_index: number;
+    tradeFeeRate: BN;
+    protocolFeeRate: BN;
+    fundFeeRate: BN;
+    create_fee: BN;
+  },
+  transferHookProgramId: PublicKey,
+  // transferFeeConfig: { transferFeeBasisPoints: number; MaxFee: number } = {
+  //   transferFeeBasisPoints: 0,
+  //   MaxFee: 0,
+  // },
+  confirmOptions?: ConfirmOptions
+) {
+  const configAddress = await createAmmConfig(
+    program,
+    connection,
+    owner,
+    config.config_index,
+    config.tradeFeeRate,
+    config.protocolFeeRate,
+    config.fundFeeRate,
+    config.create_fee,
+    confirmOptions
+  );
+
+  const [{ token0, token0Program }, { token1, token1Program }] =
+    await createTokenMintAndAssociatedTokenAccount2(
+      connection,
+      owner,
+      new Keypair(),
+      transferHookProgramId
+    );
+
+  const { poolAddress, poolState } = await initialize2(
+    program,
+    owner,
+    configAddress,
+    token0,
+    token0Program,
+    token1,
+    token1Program,
+    new PublicKey("EbgGM7FcLWekZa6D7N4Z17cf6Ju9M6RdipjxxxUNLmpR"),
+    confirmOptions
+  );
+
+  await deposit(
+    program,
+    owner,
+    poolState.ammConfig,
+    poolState.token0Mint,
+    poolState.token0Program,
+    poolState.token1Mint,
+    poolState.token1Program,
+    new BN(10000000000),
+    new BN(100000000000),
+    new BN(100000000000),
+    confirmOptions
+  );
+  return { configAddress, poolAddress, poolState };
 }

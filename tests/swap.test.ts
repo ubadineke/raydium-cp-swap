@@ -1,9 +1,19 @@
 import * as anchor from "@coral-xyz/anchor";
 import { Program, BN } from "@coral-xyz/anchor";
 import { RaydiumCpSwap } from "../target/types/raydium_cp_swap";
-import { setupSwapTest, swap_base_input, swap_base_output } from "./utils";
+import {
+  setupSwapTest,
+  setupSwapTest2,
+  swap_base_input,
+  swap_base_output,
+} from "./utils";
 import { assert } from "chai";
-import { getAccount, getAssociatedTokenAddressSync } from "@solana/spl-token";
+import {
+  getAccount,
+  getAssociatedTokenAddressSync,
+  getOrCreateAssociatedTokenAccount,
+} from "@solana/spl-token";
+import { PublicKey } from "@solana/web3.js";
 
 describe("swap test", () => {
   anchor.setProvider(anchor.AnchorProvider.env());
@@ -14,6 +24,22 @@ describe("swap test", () => {
   const confirmOptions = {
     skipPreflight: true,
   };
+
+  before(async () => {
+    const wSOLMint = new PublicKey("So11111111111111111111111111111111111111112");
+
+    const pool_ata = await getOrCreateAssociatedTokenAccount(
+      anchor.getProvider().connection,
+      owner,
+      wSOLMint,
+      owner.publicKey,
+      false,
+      "processed",
+      { skipPreflight: true }
+    );
+
+    console.log(pool_ata.address);
+  });
 
   it("swap base input without transfer fee", async () => {
     const { configAddress, poolAddress, poolState } = await setupSwapTest(
@@ -195,8 +221,12 @@ describe("swap test", () => {
   });
 
   it("swap base output with transfer hook", async () => {
-    const transferFeeConfig = { transferFeeBasisPoints: 5, MaxFee: 5000 }; // %5
-    const { configAddress, poolAddress, poolState } = await setupSwapTest(
+    // const transferFeeConfig = { transferFeeBasisPoints: 5, MaxFee: 5000 }; // %5
+    const transferHookProgramId = new PublicKey(
+      "9Xu3kAPes19s7xZcoJeMsuqSvNJ31CPyfsu66J3k3XGj"
+    );
+
+    const { configAddress, poolAddress, poolState } = await setupSwapTest2(
       program,
       anchor.getProvider().connection,
       owner,
@@ -207,7 +237,7 @@ describe("swap test", () => {
         fundFeeRate: new BN(25000),
         create_fee: new BN(0),
       },
-      transferFeeConfig
+      transferHookProgramId
     );
 
     const inputToken = poolState.token0Mint;

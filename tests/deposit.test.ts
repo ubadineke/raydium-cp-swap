@@ -23,7 +23,6 @@ describe("deposit test", () => {
 
   it("deposit test, add the same liquidity and check the correctness of the values with and without transfer fees", async () => {
     /// deposit without fee
-    console.log("play");
     const { poolAddress, poolState } = await setupDepositTest(
       program,
       anchor.getProvider().connection,
@@ -37,7 +36,6 @@ describe("deposit test", () => {
       },
       { transferFeeBasisPoints: 0, MaxFee: 0 }
     );
-    console.log("Dont play");
 
     const {
       onwerToken0Account: ownerToken0AccountBefore,
