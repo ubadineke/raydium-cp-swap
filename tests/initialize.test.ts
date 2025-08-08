@@ -26,6 +26,7 @@ import {
   createMintWithTransferHook,
   createATAWithTransferHook,
   createTokenMintAndAssociatedTokenAccount2,
+  initialize3,
 } from "./utils";
 import { assert } from "chai";
 import {
@@ -51,8 +52,8 @@ describe("initialize test", () => {
   const program = anchor.workspace.RaydiumCpSwap as Program<RaydiumCpSwap>;
 
   const confirmOptions: ConfirmOptions = {
-    skipPreflight: true,
-    // commitment: "confirmed",
+    skipPreflight: false,
+    preflightCommitment: "confirmed",
   };
 
   it("create pool without fee", async () => {
@@ -221,7 +222,7 @@ describe("initialize test", () => {
 
   it("create pool with token2022 mint that transfer hook", async () => {
     const transferHookProgramId = new PublicKey(
-      "9Xu3kAPes19s7xZcoJeMsuqSvNJ31CPyfsu66J3k3XGj"
+      "98jF4sUxDMvoRdfotY3wn7yZzq5Ct7sRaMWdSgkFqTaH"
     );
 
     const { configAddress, token0, token0Program, token1, token1Program } =
@@ -244,7 +245,48 @@ describe("initialize test", () => {
     const initAmount0 = new BN(10000000000);
     const initAmount1 = new BN(10000000000);
 
-    const { poolAddress, poolState } = await initialize(
+    //Custom
+    //Initialize Meta
+    const [extraAccountMetaListPDA] = PublicKey.findProgramAddressSync(
+      [Buffer.from("extra-account-metas"), token1.toBuffer()],
+      transferHookProgramId
+    );
+
+    console.log(`Etra account Metalist PDA, ${extraAccountMetaListPDA}`);
+    const initializeExtraAccountMetaListInstruction = await program.methods
+      .initializeExtraAccountMetaList()
+      .accounts({
+        payer: owner.publicKey,
+        extraAccountMetaList: extraAccountMetaListPDA,
+        mint: token1,
+        tokenProgram: TOKEN_2022_PROGRAM_ID,
+        associatedTokenProgram: new PublicKey(
+          "ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL"
+        ),
+        systemProgram: SystemProgram.programId,
+        transferHookProgram: transferHookProgramId,
+      })
+      .instruction();
+
+    const transaction = new Transaction().add(initializeExtraAccountMetaListInstruction);
+
+    console.log("EEUIEUIJKKKKKKKKKKJKJJKJKJKJKJKKJKJJK");
+    const txSig = await sendAndConfirmTransaction(
+      anchor.getProvider().connection,
+      transaction,
+      [owner],
+      {
+        skipPreflight: false,
+        commitment: "confirmed",
+      }
+    );
+    console.log("Transaction Signature:", txSig);
+    const tx = await anchor.getProvider().connection.getTransaction(txSig, {
+      commitment: "confirmed",
+    });
+    console.log(tx?.meta?.logMessages?.join("\n"));
+
+    const { poolAddress, poolState } = await initialize3(
       program,
       owner,
       configAddress,
@@ -252,12 +294,16 @@ describe("initialize test", () => {
       token0Program,
       token1,
       token1Program,
-      // new PublicKey("EbgGM7FcLWekZa6D7N4Z17cf6Ju9M6RdipjxxxUNLmpR"),
+      new PublicKey("EbgGM7FcLWekZa6D7N4Z17cf6Ju9M6RdipjxxxUNLmpR"),
+      extraAccountMetaListPDA,
+      transferHookProgramId,
       confirmOptions,
-      { initAmount0, initAmount1 }
+      { initAmount0, initAmount1 },
+      anchor.getProvider().connection
     ).catch((err) => {
       console.error({ message: "Error", err });
     });
+
     let vault0 = await getAccount(
       anchor.getProvider().connection,
       poolState.token0Vault,

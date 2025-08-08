@@ -1,8 +1,15 @@
 use crate::error::ErrorCode;
-use anchor_lang::{prelude::*, system_program};
+use anchor_lang::{
+    prelude::*,
+    solana_program::program::{invoke, invoke_signed},
+    system_program,
+};
 use anchor_spl::{
-    token::{Token, TokenAccount},
-    token_2022,
+    token::{self, Token, TokenAccount},
+    token_2022::{
+        self, spl_token_2022::offchain::create_transfer_checked_instruction_with_extra_metas,
+        MintToChecked,
+    },
     token_interface::{initialize_account3, InitializeAccount3, Mint},
 };
 use spl_token_2022::{
@@ -12,6 +19,7 @@ use spl_token_2022::{
         BaseStateWithExtensions, ExtensionType, StateWithExtensions,
     },
 };
+use spl_transfer_hook_interface::onchain::add_extra_accounts_for_execute_cpi;
 use std::collections::HashSet;
 
 const MINT_WHITELIST: [&'static str; 4] = [
@@ -33,6 +41,7 @@ pub fn transfer_from_user_to_pool_vault<'a>(
     if amount == 0 {
         return Ok(());
     }
+
     token_2022::transfer_checked(
         CpiContext::new(
             token_program.to_account_info(),
@@ -46,6 +55,61 @@ pub fn transfer_from_user_to_pool_vault<'a>(
         amount,
         mint_decimals,
     )
+}
+
+pub fn transfer_from_user_to_pool_vault_2<'a>(
+    authority: &AccountInfo<'a>,
+    source: &AccountInfo<'a>,
+    mint: &AccountInfo<'a>,
+    destination: &AccountInfo<'a>,
+    token_program: &AccountInfo<'a>,
+    signers: &[&AccountInfo<'a>],
+    amount: u64,
+    decimals: u8,
+    transfer_hook_program: &AccountInfo<'a>,
+    additional_accounts: &Vec<AccountInfo<'a>>,
+) -> Result<()> {
+    let signers: Vec<&Pubkey> = signers.iter().map(|info| info.key).collect();
+    let signers_slice = &signers;
+
+    let mut transfer_instruction = spl_token_2022::instruction::transfer_checked(
+        token_program.key,
+        source.key,
+        mint.key,
+        destination.key,
+        authority.key,
+        &signers_slice,
+        amount,
+        decimals,
+    )?;
+    // Step 2: Create base account infos
+    let mut account_infos = vec![
+        source.clone(),
+        mint.clone(),
+        destination.clone(),
+        authority.clone(),
+    ];
+
+    // Step 3: Prepare additional accounts (transfer hook program + extra account meta list)
+    // Step 4: Use the helper to add transfer hook accounts to the instruction
+    add_extra_accounts_for_execute_cpi(
+        &mut transfer_instruction,
+        &mut account_infos,
+        transfer_hook_program.key,
+        source.clone(),
+        mint.clone(),
+        destination.clone(),
+        authority.clone(),
+        amount,
+        &additional_accounts,
+    )
+    .map_err(|e| ProgramError::from(e))?;
+
+    msg!("Account number, {}", transfer_instruction.accounts.len());
+    // Step 5: Execute the modified instruction
+    invoke(&transfer_instruction, &account_infos)?;
+
+    Ok(())
 }
 
 pub fn transfer_from_pool_vault_to_user<'a>(

@@ -753,3 +753,94 @@ export async function setupSwapTest2(
   );
   return { configAddress, poolAddress, poolState };
 }
+
+export async function initialize3(
+  program: Program<RaydiumCpSwap>,
+  creator: Signer,
+  configAddress: PublicKey,
+  token0: PublicKey,
+  token0Program: PublicKey,
+  token1: PublicKey,
+  token1Program: PublicKey,
+  createPoolFee: PublicKey,
+  extraAccountMetaListPDA: PublicKey,
+  transferHookProgramId: PublicKey,
+
+  confirmOptions?: ConfirmOptions,
+  initAmount: { initAmount0: BN; initAmount1: BN } = {
+    initAmount0: new BN(10000000000),
+    initAmount1: new BN(20000000000),
+  },
+  connection?: Connection
+  // createPoolFee = new PublicKey("DNXgeM9EiiaAbaWvwjHj9fQQLAX5ZsfHyvmYUNRAdNC8")
+) {
+  const [auth] = await getAuthAddress(program.programId);
+  const [poolAddress] = await getPoolAddress(
+    configAddress,
+    token0,
+    token1,
+    program.programId
+  );
+  const [lpMintAddress] = await getPoolLpMintAddress(poolAddress, program.programId);
+  const [vault0] = await getPoolVaultAddress(poolAddress, token0, program.programId);
+  const [vault1] = await getPoolVaultAddress(poolAddress, token1, program.programId);
+  const [creatorLpTokenAddress] = await PublicKey.findProgramAddress(
+    [creator.publicKey.toBuffer(), TOKEN_PROGRAM_ID.toBuffer(), lpMintAddress.toBuffer()],
+    ASSOCIATED_PROGRAM_ID
+  );
+
+  const [observationAddress] = await getOrcleAccountAddress(
+    poolAddress,
+    program.programId
+  );
+
+  const creatorToken0 = getAssociatedTokenAddressSync(
+    token0,
+    creator.publicKey,
+    false,
+    token0Program
+  );
+  const creatorToken1 = getAssociatedTokenAddressSync(
+    token1,
+    creator.publicKey,
+    false,
+    token1Program
+  );
+  const txSig = await program.methods
+    .initializeTwo(initAmount.initAmount0, initAmount.initAmount1, new BN(0))
+    .accountsPartial({
+      creator: creator.publicKey,
+      ammConfig: configAddress,
+      authority: auth,
+      poolState: poolAddress,
+      token0Mint: token0,
+      token1Mint: token1,
+      lpMint: lpMintAddress,
+      creatorToken0,
+      creatorToken1,
+      creatorLpToken: creatorLpTokenAddress,
+      token0Vault: vault0,
+      token1Vault: vault1,
+      createPoolFee,
+      observationState: observationAddress,
+      tokenProgram: TOKEN_PROGRAM_ID,
+      token0Program: token0Program,
+      token1Program: token1Program,
+      systemProgram: SystemProgram.programId,
+      rent: SYSVAR_RENT_PUBKEY,
+      transferHookProgram: transferHookProgramId,
+      extraAccountMetaList: extraAccountMetaListPDA,
+    })
+    .rpc(confirmOptions);
+  console.log(txSig);
+
+  await connection.confirmTransaction(txSig, "confirmed");
+  const tx = await connection.getTransaction(txSig, {
+    commitment: "confirmed",
+  });
+  console.log(tx);
+  console.log(tx?.meta?.logMessages?.join("\n"));
+
+  const poolState = await program.account.poolState.fetch(poolAddress);
+  return { poolAddress, poolState };
+}

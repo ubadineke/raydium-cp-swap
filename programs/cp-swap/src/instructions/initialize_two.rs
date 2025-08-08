@@ -2,6 +2,7 @@ use crate::curve::CurveCalculator;
 use crate::error::ErrorCode;
 use crate::states::*;
 use crate::utils::*;
+use anchor_lang::solana_program::program::invoke_signed;
 use anchor_lang::{
     accounts::interface_account::InterfaceAccount,
     prelude::*,
@@ -15,11 +16,12 @@ use anchor_spl::{
     token::Token,
     token_interface::{Mint, TokenAccount, TokenInterface},
 };
-use spl_token_2022;
+use spl_transfer_hook_interface::onchain::add_extra_accounts_for_execute_cpi;
+// use spl_token_2022;
 use std::ops::Deref;
 
 #[derive(Accounts)]
-pub struct Initialize<'info> {
+pub struct InitializeTwo<'info> {
     /// Address paying to create the pool. Can be anyone
     #[account(mut)]
     pub creator: Signer<'info>,
@@ -160,19 +162,31 @@ pub struct Initialize<'info> {
     pub system_program: Program<'info, System>,
     /// Sysvar for program account
     pub rent: Sysvar<'info, Rent>,
+
+    ///CHECK: for verification
+    pub transfer_hook_program: UncheckedAccount<'info>,
+    // #[account(
+    //     seeds = [b"extra-account-metas", token_1_mint.key().as_ref()],
+    //     bump,
+    //     seeds::program = transfer_hook_program_id.key()
+    // )]
+    ///CHECK: for verification
+    pub extra_account_meta_list: UncheckedAccount<'info>,
 }
 
-pub fn initialize(
-    ctx: Context<Initialize>,
+pub fn initialize_two(
+    ctx: Context<InitializeTwo>,
     init_amount_0: u64,
     init_amount_1: u64,
     mut open_time: u64,
 ) -> Result<()> {
+    msg!("Program Nil Check");
     if !(is_supported_mint(&ctx.accounts.token_0_mint).unwrap()
         && is_supported_mint(&ctx.accounts.token_1_mint).unwrap())
     {
         return err!(ErrorCode::NotSupportMint);
     }
+    msg!("Program 0 Check");
 
     if ctx.accounts.amm_config.disable_create_pool {
         return err!(ErrorCode::NotApproved);
@@ -225,24 +239,37 @@ pub fn initialize(
     let mut observation_state = ctx.accounts.observation_state.load_init()?;
     observation_state.pool_id = ctx.accounts.pool_state.key();
 
-    transfer_from_user_to_pool_vault(
-        ctx.accounts.creator.to_account_info(),
-        ctx.accounts.creator_token_0.to_account_info(),
-        ctx.accounts.token_0_vault.to_account_info(),
-        ctx.accounts.token_0_mint.to_account_info(),
-        ctx.accounts.token_0_program.to_account_info(),
+    // mint 0 - set
+
+    let additional_accounts = vec![
+        ctx.accounts.extra_account_meta_list.to_account_info(),
+        ctx.accounts.transfer_hook_program.to_account_info(),
+    ];
+
+    transfer_from_user_to_pool_vault_2(
+        &ctx.accounts.creator.to_account_info(),
+        &ctx.accounts.creator_token_0.to_account_info(),
+        &ctx.accounts.token_0_mint.to_account_info(),
+        &ctx.accounts.token_0_vault.to_account_info(),
+        &ctx.accounts.token_0_program.to_account_info(),
+        &[],
         init_amount_0,
         ctx.accounts.token_0_mint.decimals,
+        &ctx.accounts.transfer_hook_program.to_account_info(),
+        &additional_accounts,
     )?;
 
-    transfer_from_user_to_pool_vault(
-        ctx.accounts.creator.to_account_info(),
-        ctx.accounts.creator_token_1.to_account_info(),
-        ctx.accounts.token_1_vault.to_account_info(),
-        ctx.accounts.token_1_mint.to_account_info(),
-        ctx.accounts.token_1_program.to_account_info(),
+    transfer_from_user_to_pool_vault_2(
+        &ctx.accounts.creator.to_account_info(),
+        &ctx.accounts.creator_token_1.to_account_info(),
+        &ctx.accounts.token_1_mint.to_account_info(),
+        &ctx.accounts.token_1_vault.to_account_info(),
+        &ctx.accounts.token_1_program.to_account_info(),
+        &[],
         init_amount_1,
         ctx.accounts.token_1_mint.decimals,
+        &ctx.accounts.transfer_hook_program.to_account_info(),
+        &additional_accounts,
     )?;
 
     let token_0_vault =

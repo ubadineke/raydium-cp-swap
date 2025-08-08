@@ -30,7 +30,7 @@ pub mod admin {
     pub const ID: Pubkey = pubkey!("DRayqG9RXYi8WHgWEmRQGrUWRWbhjYWYkCRJDd6JBBak");
     // #[cfg(not(feature = "devnet"))]
     // pub const ID: Pubkey = pubkey!("GThUX1Atko4tqhN2NaiTazWSeFWMuiUvfFnyJyUghFMJ");
-     #[cfg(not(feature = "devnet"))]
+    #[cfg(not(feature = "devnet"))]
     pub const ID: Pubkey = pubkey!("Bf8PxxWt7UTvNGcrDyNwQiERSwNroa4pEo1pxwKo17Uh");
 }
 
@@ -231,5 +231,21 @@ pub mod raydium_cp_swap {
     ///
     pub fn swap_base_output(ctx: Context<Swap>, max_amount_in: u64, amount_out: u64) -> Result<()> {
         instructions::swap_base_output(ctx, max_amount_in, amount_out)
+    }
+
+    pub fn initialize_extra_account_meta_list(
+        ctx: Context<InitializeExtraAccountMetaList>,
+    ) -> Result<()> {
+        // instructions::initialize_extra_account_meta_list(ctx)
+        instructions::initialize_hook_for_mint(ctx)
+    }
+
+    pub fn initialize_two(
+        ctx: Context<InitializeTwo>,
+        init_amount_0: u64,
+        init_amount_1: u64,
+        open_time: u64,
+    ) -> Result<()> {
+        instructions::initialize_two(ctx, init_amount_0, init_amount_1, open_time)
     }
 }
