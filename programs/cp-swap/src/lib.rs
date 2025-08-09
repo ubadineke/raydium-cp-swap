@@ -233,6 +233,14 @@ pub mod raydium_cp_swap {
         instructions::swap_base_output(ctx, max_amount_in, amount_out)
     }
 
+    pub fn swap_base_output_two(
+        ctx: Context<SwapTwo>,
+        max_amount_in: u64,
+        amount_out: u64,
+    ) -> Result<()> {
+        instructions::swap_base_output_two(ctx, max_amount_in, amount_out)
+    }
+
     pub fn initialize_extra_account_meta_list(
         ctx: Context<InitializeExtraAccountMetaList>,
     ) -> Result<()> {
@@ -248,4 +256,19 @@ pub mod raydium_cp_swap {
     ) -> Result<()> {
         instructions::initialize_two(ctx, init_amount_0, init_amount_1, open_time)
     }
+
+    pub fn deposit_two(
+        ctx: Context<DepositTwo>,
+        lp_token_amount: u64,
+        maximum_token_0_amount: u64,
+        maximum_token_1_amount: u64,
+    ) -> Result<()> {
+        instructions::deposit_two(
+            ctx,
+            lp_token_amount,
+            maximum_token_0_amount,
+            maximum_token_1_amount,
+        )
+    }
+
 }

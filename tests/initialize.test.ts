@@ -284,7 +284,7 @@ describe("initialize test", () => {
     const tx = await anchor.getProvider().connection.getTransaction(txSig, {
       commitment: "confirmed",
     });
-    console.log(tx?.meta?.logMessages?.join("\n"));
+    // console.log(tx?.meta?.logMessages?.join("\n"));
 
     const { poolAddress, poolState } = await initialize3(
       program,
@@ -298,8 +298,8 @@ describe("initialize test", () => {
       extraAccountMetaListPDA,
       transferHookProgramId,
       confirmOptions,
-      { initAmount0, initAmount1 },
-      anchor.getProvider().connection
+      anchor.getProvider().connection,
+      { initAmount0, initAmount1 }
     ).catch((err) => {
       console.error({ message: "Error", err });
     });

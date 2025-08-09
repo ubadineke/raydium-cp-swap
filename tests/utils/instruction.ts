@@ -8,6 +8,8 @@ import {
   Signer,
   SystemProgram,
   SYSVAR_RENT_PUBKEY,
+  Transaction,
+  sendAndConfirmTransaction,
 } from "@solana/web3.js";
 import {
   TOKEN_PROGRAM_ID,
@@ -406,6 +408,73 @@ export async function deposit(
   return tx;
 }
 
+export async function deposit_2(
+  program: Program<RaydiumCpSwap>,
+  owner: Signer,
+  configAddress: PublicKey,
+  token0: PublicKey,
+  token0Program: PublicKey,
+  token1: PublicKey,
+  token1Program: PublicKey,
+  lp_token_amount: BN,
+  maximum_token_0_amount: BN,
+  maximum_token_1_amount: BN,
+  transferHookProgramId: PublicKey,
+  extraAccountMetaListPDA: PublicKey,
+  confirmOptions?: ConfirmOptions
+) {
+  const [auth] = await getAuthAddress(program.programId);
+  const [poolAddress] = await getPoolAddress(
+    configAddress,
+    token0,
+    token1,
+    program.programId
+  );
+
+  const [lpMintAddress] = await getPoolLpMintAddress(poolAddress, program.programId);
+  const [vault0] = await getPoolVaultAddress(poolAddress, token0, program.programId);
+  const [vault1] = await getPoolVaultAddress(poolAddress, token1, program.programId);
+  const [ownerLpToken] = await PublicKey.findProgramAddress(
+    [owner.publicKey.toBuffer(), TOKEN_PROGRAM_ID.toBuffer(), lpMintAddress.toBuffer()],
+    ASSOCIATED_PROGRAM_ID
+  );
+
+  const onwerToken0 = getAssociatedTokenAddressSync(
+    token0,
+    owner.publicKey,
+    false,
+    token0Program
+  );
+  const onwerToken1 = getAssociatedTokenAddressSync(
+    token1,
+    owner.publicKey,
+    false,
+    token1Program
+  );
+
+  const tx = await program.methods
+    .depositTwo(lp_token_amount, maximum_token_0_amount, maximum_token_1_amount)
+    .accounts({
+      owner: owner.publicKey,
+      authority: auth,
+      poolState: poolAddress,
+      ownerLpToken,
+      token0Account: onwerToken0,
+      token1Account: onwerToken1,
+      token0Vault: vault0,
+      token1Vault: vault1,
+      tokenProgram: TOKEN_PROGRAM_ID,
+      tokenProgram2022: TOKEN_2022_PROGRAM_ID,
+      vault0Mint: token0,
+      vault1Mint: token1,
+      lpMint: lpMintAddress,
+      transferHookProgram: transferHookProgramId,
+      extraAccountMetaList: extraAccountMetaListPDA,
+    })
+    .rpc(confirmOptions);
+  return tx;
+}
+
 export async function withdraw(
   program: Program<RaydiumCpSwap>,
   owner: Signer,
@@ -612,6 +681,80 @@ export async function swap_base_output(
   return tx;
 }
 
+export async function swap_base_output_2(
+  program: Program<RaydiumCpSwap>,
+  owner: Signer,
+  configAddress: PublicKey,
+  inputToken: PublicKey,
+  inputTokenProgram: PublicKey,
+  outputToken: PublicKey,
+  outputTokenProgram: PublicKey,
+  amount_out_less_fee: BN,
+  max_amount_in: BN,
+  transferHookProgramId: PublicKey,
+  extraAccountMetaListPDA: PublicKey,
+  confirmOptions?: ConfirmOptions
+) {
+  const [auth] = await getAuthAddress(program.programId);
+  const [poolAddress] = await getPoolAddress(
+    configAddress,
+    inputToken,
+    outputToken,
+    program.programId
+  );
+
+  const [inputVault] = await getPoolVaultAddress(
+    poolAddress,
+    inputToken,
+    program.programId
+  );
+  const [outputVault] = await getPoolVaultAddress(
+    poolAddress,
+    outputToken,
+    program.programId
+  );
+
+  const inputTokenAccount = getAssociatedTokenAddressSync(
+    inputToken,
+    owner.publicKey,
+    false,
+    inputTokenProgram
+  );
+  const outputTokenAccount = getAssociatedTokenAddressSync(
+    outputToken,
+    owner.publicKey,
+    false,
+    outputTokenProgram
+  );
+  const [observationAddress] = await getOrcleAccountAddress(
+    poolAddress,
+    program.programId
+  );
+
+  const tx = await program.methods
+    .swapBaseOutputTwo(max_amount_in, amount_out_less_fee)
+    .accountsPartial({
+      payer: owner.publicKey,
+      authority: auth,
+      ammConfig: configAddress,
+      poolState: poolAddress,
+      inputTokenAccount,
+      outputTokenAccount,
+      inputVault,
+      outputVault,
+      inputTokenProgram: inputTokenProgram,
+      outputTokenProgram: outputTokenProgram,
+      inputTokenMint: inputToken,
+      outputTokenMint: outputToken,
+      observationState: observationAddress,
+      transferHookProgram: transferHookProgramId,
+      extraAccountMetaList: extraAccountMetaListPDA,
+    })
+    .rpc(confirmOptions);
+
+  return tx;
+}
+
 export async function initialize2(
   program: Program<RaydiumCpSwap>,
   creator: Signer,
@@ -684,6 +827,9 @@ export async function initialize2(
       rent: SYSVAR_RENT_PUBKEY,
     })
     .rpc(confirmOptions);
+
+  // console.log(tx);
+  // console.log(tx?.meta?.logMessages?.join("\n"));
   const poolState = await program.account.poolState.fetch(poolAddress);
   return { poolAddress, poolState };
 }
@@ -726,7 +872,42 @@ export async function setupSwapTest2(
       transferHookProgramId
     );
 
-  const { poolAddress, poolState } = await initialize2(
+  //Account meta initialization
+  const [extraAccountMetaListPDA] = PublicKey.findProgramAddressSync(
+    [Buffer.from("extra-account-metas"), token1.toBuffer()],
+    transferHookProgramId
+  );
+
+  console.log(`Mega Extra account Metalist PDA, ${extraAccountMetaListPDA}`);
+  const initializeExtraAccountMetaListInstruction = await program.methods
+    .initializeExtraAccountMetaList()
+    .accounts({
+      payer: owner.publicKey,
+      extraAccountMetaList: extraAccountMetaListPDA,
+      mint: token1,
+      tokenProgram: TOKEN_2022_PROGRAM_ID,
+      associatedTokenProgram: new PublicKey(
+        "ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL"
+      ),
+      systemProgram: SystemProgram.programId,
+      transferHookProgram: transferHookProgramId,
+    })
+    .instruction();
+
+  const transaction = new Transaction().add(initializeExtraAccountMetaListInstruction);
+
+  console.log("EEUIEUIJKKKKKKKKKKJKJJKJKJKJKJKKJKJJK");
+  const txSig = await sendAndConfirmTransaction(connection, transaction, [owner], {
+    skipPreflight: false,
+    commitment: "confirmed",
+  });
+  console.log("Transaction Signature:", txSig);
+  const tx = await connection.getTransaction(txSig, {
+    commitment: "confirmed",
+  });
+  console.log(tx?.meta?.logMessages?.join("\n"));
+
+  const { poolAddress, poolState } = await initialize3(
     program,
     owner,
     configAddress,
@@ -735,10 +916,26 @@ export async function setupSwapTest2(
     token1,
     token1Program,
     new PublicKey("EbgGM7FcLWekZa6D7N4Z17cf6Ju9M6RdipjxxxUNLmpR"),
-    confirmOptions
+    extraAccountMetaListPDA,
+    transferHookProgramId,
+    confirmOptions,
+    connection
   );
-
-  await deposit(
+  console.log("'Bout to Deposit");
+  // await deposit(
+  //   program,
+  //   owner,
+  //   poolState.ammConfig,
+  //   poolState.token0Mint,
+  //   poolState.token0Program,
+  //   poolState.token1Mint,
+  //   poolState.token1Program,
+  //   new BN(10000000000),
+  //   new BN(100000000000),
+  //   new BN(100000000000),
+  //   confirmOptions
+  // );
+  await deposit_2(
     program,
     owner,
     poolState.ammConfig,
@@ -749,9 +946,11 @@ export async function setupSwapTest2(
     new BN(10000000000),
     new BN(100000000000),
     new BN(100000000000),
+    transferHookProgramId,
+    extraAccountMetaListPDA,
     confirmOptions
   );
-  return { configAddress, poolAddress, poolState };
+  return { configAddress, poolAddress, poolState, extraAccountMetaListPDA };
 }
 
 export async function initialize3(
@@ -767,11 +966,11 @@ export async function initialize3(
   transferHookProgramId: PublicKey,
 
   confirmOptions?: ConfirmOptions,
+  connection?: Connection,
   initAmount: { initAmount0: BN; initAmount1: BN } = {
     initAmount0: new BN(10000000000),
     initAmount1: new BN(20000000000),
-  },
-  connection?: Connection
+  }
   // createPoolFee = new PublicKey("DNXgeM9EiiaAbaWvwjHj9fQQLAX5ZsfHyvmYUNRAdNC8")
 ) {
   const [auth] = await getAuthAddress(program.programId);
@@ -831,7 +1030,20 @@ export async function initialize3(
       transferHookProgram: transferHookProgramId,
       extraAccountMetaList: extraAccountMetaListPDA,
     })
+    // .remainingAccounts([
+    //   {
+    //     pubkey: transferHookProgramId,
+    //     isWritable: false,
+    //     isSigner: false,
+    //   },
+    //   {
+    //     pubkey: extraAccountMetaListPDA,
+    //     isWritable: false,
+    //     isSigner: false,
+    //   },
+    // ])
     .rpc(confirmOptions);
+  // console.log("The Initialize");
   console.log(txSig);
 
   await connection.confirmTransaction(txSig, "confirmed");

@@ -6,14 +6,22 @@ import {
   setupSwapTest2,
   swap_base_input,
   swap_base_output,
+  swap_base_output_2,
 } from "./utils";
 import { assert } from "chai";
 import {
   getAccount,
   getAssociatedTokenAddressSync,
   getOrCreateAssociatedTokenAccount,
+  TOKEN_2022_PROGRAM_ID,
 } from "@solana/spl-token";
-import { PublicKey } from "@solana/web3.js";
+import {
+  ConfirmOptions,
+  PublicKey,
+  sendAndConfirmTransaction,
+  SystemProgram,
+  Transaction,
+} from "@solana/web3.js";
 
 describe("swap test", () => {
   anchor.setProvider(anchor.AnchorProvider.env());
@@ -21,8 +29,9 @@ describe("swap test", () => {
 
   const program = anchor.workspace.RaydiumCpSwap as Program<RaydiumCpSwap>;
 
-  const confirmOptions = {
-    skipPreflight: true,
+  const confirmOptions: ConfirmOptions = {
+    skipPreflight: false,
+    preflightCommitment: "confirmed",
   };
 
   before(async () => {
@@ -222,24 +231,27 @@ describe("swap test", () => {
 
   it("swap base output with transfer hook", async () => {
     // const transferFeeConfig = { transferFeeBasisPoints: 5, MaxFee: 5000 }; // %5
+
     const transferHookProgramId = new PublicKey(
-      "9Xu3kAPes19s7xZcoJeMsuqSvNJ31CPyfsu66J3k3XGj"
+      "98jF4sUxDMvoRdfotY3wn7yZzq5Ct7sRaMWdSgkFqTaH"
     );
 
-    const { configAddress, poolAddress, poolState } = await setupSwapTest2(
-      program,
-      anchor.getProvider().connection,
-      owner,
-      {
-        config_index: 0,
-        tradeFeeRate: new BN(10),
-        protocolFeeRate: new BN(1000),
-        fundFeeRate: new BN(25000),
-        create_fee: new BN(0),
-      },
-      transferHookProgramId
-    );
+    const { configAddress, poolAddress, poolState, extraAccountMetaListPDA } =
+      await setupSwapTest2(
+        program,
+        anchor.getProvider().connection,
+        owner,
+        {
+          config_index: 0,
+          tradeFeeRate: new BN(10),
+          protocolFeeRate: new BN(1000),
+          fundFeeRate: new BN(25000),
+          create_fee: new BN(0),
+        },
+        transferHookProgramId
+      );
 
+    console.log("Got out of the swap test");
     const inputToken = poolState.token0Mint;
     const inputTokenProgram = poolState.token0Program;
     const inputTokenAccountAddr = getAssociatedTokenAddressSync(
@@ -264,7 +276,8 @@ describe("swap test", () => {
     );
     await sleep(1000);
     let amount_out = new BN(100000000);
-    await swap_base_output(
+
+    await swap_base_output_2(
       program,
       owner,
       configAddress,
@@ -274,8 +287,12 @@ describe("swap test", () => {
       poolState.token1Program,
       amount_out,
       new BN(10000000000000),
+      transferHookProgramId,
+      extraAccountMetaListPDA,
       confirmOptions
-    );
+    ).catch((err) => {
+      console.error({ message: "Error", err });
+    });
     const outputTokenAccountAfter = await getAccount(
       anchor.getProvider().connection,
       outputTokenAccountAddr,
