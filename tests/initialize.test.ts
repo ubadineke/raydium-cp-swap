@@ -2,29 +2,12 @@ import * as anchor from "@coral-xyz/anchor";
 import { Program, BN } from "@coral-xyz/anchor";
 import { RaydiumCpSwap } from "../target/types/raydium_cp_swap";
 
-import {
-  createAssociatedTokenAccountInstruction,
-  createInitializeMintInstruction,
-  createMint,
-  ExtensionType,
-  getAccount,
-  getAssociatedTokenAddressSync,
-  getMintLen,
-  getOrCreateAssociatedTokenAccount,
-  initializeTransferHook,
-  mintTo,
-  TOKEN_2022_PROGRAM_ID,
-  TOKEN_PROGRAM_ID,
-} from "@solana/spl-token";
+import { getAccount, TOKEN_2022_PROGRAM_ID, TOKEN_PROGRAM_ID } from "@solana/spl-token";
 import {
   setupInitializeTest,
   initialize,
   calculateFee,
-  sendTransaction,
   createAmmConfig,
-  initialize2,
-  createMintWithTransferHook,
-  createATAWithTransferHook,
   createTokenMintAndAssociatedTokenAccount2,
   initialize3,
 } from "./utils";
@@ -38,11 +21,7 @@ import {
   Signer,
   SystemProgram,
   Transaction,
-  TransactionInstruction,
 } from "@solana/web3.js";
-import { web3 } from "@coral-xyz/anchor";
-import { sleep } from "./swap.test";
-import { error } from "console";
 
 describe("initialize test", () => {
   anchor.setProvider(anchor.AnchorProvider.env());
@@ -252,7 +231,7 @@ describe("initialize test", () => {
       transferHookProgramId
     );
 
-    console.log(`Etra account Metalist PDA, ${extraAccountMetaListPDA}`);
+    console.log(`Extra account Metalist PDA, ${extraAccountMetaListPDA}`);
     const initializeExtraAccountMetaListInstruction = await program.methods
       .initializeExtraAccountMetaList()
       .accounts({
@@ -270,7 +249,6 @@ describe("initialize test", () => {
 
     const transaction = new Transaction().add(initializeExtraAccountMetaListInstruction);
 
-    console.log("EEUIEUIJKKKKKKKKKKJKJJKJKJKJKJKKJKJJK");
     const txSig = await sendAndConfirmTransaction(
       anchor.getProvider().connection,
       transaction,

@@ -182,7 +182,7 @@ pub fn swap_base_output_two(
         &ctx.accounts.transfer_hook_program,
         &additional_accounts,
     )?;
-    msg!("Finished the first part");
+    
     transfer_from_pool_vault_to_user_2(
         &ctx.accounts.authority.to_account_info(),
         &ctx.accounts.output_vault.to_account_info(),

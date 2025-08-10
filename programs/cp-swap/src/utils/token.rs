@@ -72,8 +72,6 @@ pub fn transfer_from_user_to_pool_vault_2<'a>(
     if amount == 0 {
         return Ok(());
     }
-    // msg!("Acc1 {}", additional_accounts[0].key);
-    // msg!("Acc2 {}", additional_accounts[1].key);
 
     let signers: Vec<&Pubkey> = signers.iter().map(|info| info.key).collect();
     let signers_slice = &signers;
@@ -111,7 +109,7 @@ pub fn transfer_from_user_to_pool_vault_2<'a>(
     )
     .map_err(|e| ProgramError::from(e))?;
 
-    msg!("Account number, {}", transfer_instruction.accounts.len());
+    msg!("Accounts length, {}", transfer_instruction.accounts.len());
     // Step 5: Execute the modified instruction
     invoke(&transfer_instruction, &account_infos)?;
 
@@ -171,7 +169,7 @@ pub fn transfer_from_pool_vault_to_user_2<'a>(
     )
     .map_err(|e| ProgramError::from(e))?;
 
-    msg!("Account number, {}", transfer_instruction.accounts.len());
+    msg!("Accounts length, {}", transfer_instruction.accounts.len());
     // Step 5: Execute the modified instruction
     invoke_signed(&transfer_instruction, &account_infos, signer_seeds)?;
 

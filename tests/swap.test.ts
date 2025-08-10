@@ -13,15 +13,8 @@ import {
   getAccount,
   getAssociatedTokenAddressSync,
   getOrCreateAssociatedTokenAccount,
-  TOKEN_2022_PROGRAM_ID,
 } from "@solana/spl-token";
-import {
-  ConfirmOptions,
-  PublicKey,
-  sendAndConfirmTransaction,
-  SystemProgram,
-  Transaction,
-} from "@solana/web3.js";
+import { ConfirmOptions, PublicKey } from "@solana/web3.js";
 
 describe("swap test", () => {
   anchor.setProvider(anchor.AnchorProvider.env());
@@ -35,6 +28,7 @@ describe("swap test", () => {
   };
 
   before(async () => {
+    //Create Fee Receiver
     const wSOLMint = new PublicKey("So11111111111111111111111111111111111111112");
 
     const pool_ata = await getOrCreateAssociatedTokenAccount(

@@ -140,8 +140,7 @@ export async function setupDepositTest(
         );
       }
     } else {
-      console.log("gotten here");
-      /// Custom Create Fee pooL
+      /// Custom Create Fee Pool(Fee Receiver)
       //Create token account with WSOL mint and public key
       const wSOLMint = new PublicKey("So11111111111111111111111111111111111111112");
 
@@ -283,7 +282,7 @@ export async function initialize(
   createPoolFee = new PublicKey("EbgGM7FcLWekZa6D7N4Z17cf6Ju9M6RdipjxxxUNLmpR")
 ) {
   if (!createPoolFee) {
-    console.log("No Value for Create Pool Argument ");
+    console.log("No Value for Create Pool(Fee Receiver) Argument ");
   }
   const [auth] = await getAuthAddress(program.programId);
   const [poolAddress] = await getPoolAddress(
@@ -896,7 +895,6 @@ export async function setupSwapTest2(
 
   const transaction = new Transaction().add(initializeExtraAccountMetaListInstruction);
 
-  console.log("EEUIEUIJKKKKKKKKKKJKJJKJKJKJKJKKJKJJK");
   const txSig = await sendAndConfirmTransaction(connection, transaction, [owner], {
     skipPreflight: false,
     commitment: "confirmed",
@@ -921,20 +919,7 @@ export async function setupSwapTest2(
     confirmOptions,
     connection
   );
-  console.log("'Bout to Deposit");
-  // await deposit(
-  //   program,
-  //   owner,
-  //   poolState.ammConfig,
-  //   poolState.token0Mint,
-  //   poolState.token0Program,
-  //   poolState.token1Mint,
-  //   poolState.token1Program,
-  //   new BN(10000000000),
-  //   new BN(100000000000),
-  //   new BN(100000000000),
-  //   confirmOptions
-  // );
+
   await deposit_2(
     program,
     owner,
@@ -1043,7 +1028,6 @@ export async function initialize3(
     //   },
     // ])
     .rpc(confirmOptions);
-  // console.log("The Initialize");
   console.log(txSig);
 
   await connection.confirmTransaction(txSig, "confirmed");
